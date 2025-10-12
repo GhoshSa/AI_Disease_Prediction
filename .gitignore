@@ -3,7 +3,7 @@
 data
 *.csv
 
-*.py
+/code
 
 Backprop gradient class.ipynb
 Backprop_Single_Neuron.ipynb

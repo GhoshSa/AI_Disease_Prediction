@@ -33,10 +33,10 @@ Each dataset contains:
 
 
 ## 🚀 Usage
-1. Place `Training.csv` and `Testing.csv` in the project folder.  
-2. Train and run the model:
+1. Place `Training.csv` and `Testing.csv` in the project directory under the data folder.  
+2. Train and run the model with jupyter notebook:
    ```bash
-   python phase_01.py
+   MLP.ipynb
 3. Example conversations
    ```bash
    Describe your symptoms in detail:
@@ -45,7 +45,7 @@ Each dataset contains:
    > skin rash
    Final prediction: Fungal infection (confidence 0.93)
 ## 🛠️ Project Structure
-- `phase_01.py` → Main training + interactive script  
+- `MLP.py` → Main training + interactive script  
 - `Training.csv` → Training dataset  
 - `Testing.csv` → Testing dataset  
 
