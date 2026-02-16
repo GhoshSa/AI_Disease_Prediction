@@ -3,7 +3,9 @@
 data
 *.csv
 
-/code
+*.png
+
+.ipynb_checkpoints
 
 Backprop gradient class.ipynb
 Backprop_Single_Neuron.ipynb
