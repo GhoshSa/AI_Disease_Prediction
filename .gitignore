@@ -1,11 +1,14 @@
 /venv
 
-data
+Data
 *.csv
 
 *.png
 
 .ipynb_checkpoints
+
+/learning
+__pycache__
 
 Backprop gradient class.ipynb
 Backprop_Single_Neuron.ipynb

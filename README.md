@@ -1,41 +1,53 @@
 # 🧠 Symptom-to-Disease Prediction with Interactive Conversation
 
-A **neural network from scratch** built with **NumPy** to predict diseases from symptoms. The project includes both a standalone training script and an interactive Jupyter notebook, with a chatbot-like interface for symptom-based diagnosis.
+A **neural network from scratch** built with **NumPy** to predict diseases from symptoms. The project features a custom MLP implementation with an interactive conversational diagnosis system, no deep learning frameworks required.
 
 ## ✨ Features
-- **Custom MLP Neural Network** (no deep learning frameworks):
-  - Dense layers with He and Xavier initialization
-  - ReLU activation functions  
-  - Dropout regularization (configurable rate)  
-  - Softmax + Cross-Entropy loss  
-  - **Adam optimizer** with bias correction and learning rate decay
-- **Confidence-based prediction**:
-  - Threshold-aware abstention mechanism
-  - Selective prediction with coverage metrics
-  - Confidence calibration analysis
-- **Interactive diagnosis system**:
-  - Conversational loop for symptom collection
-  - Top-2 disease suggestions when confidence is low
-  - Automatic final prediction when confidence threshold is reached
-- **Model evaluation**:
-  - Stratified k-fold cross-validation (notebook version)
-  - Confusion matrix with abstention tracking
-  - Calibration curves and confidence histograms
-  - Selective accuracy, coverage, and abstain rate metrics
+- **Custom MLP Neural Network** :
+  - Fully connected Dense layers with He and Xavier weight initialization
+  - ReLU activation with gradient backpropagation
+  - Dropout regularization (20% rate) for training stability
+  - Softmax + Cross-Entropy loss function
+  - Adam optimizer with adaptive learning rates, momentum, and RMSprop
+- **Dual-threshold Prediction Strategy**:
+  - **Entropy threshold**: Requests additional symptoms when uncertainty is high
+  - **Confidence threshold**: Abstains when max probability is below threshold
+  - **Calibrated decision-making**: Combines both thresholds for robust predictions
+- **Interactive Diagnosis System**:
+  - Natural language symptom parsing with comma/period/semicolon delimiters
+  - Real-time entropy and confidence tracking during conversation
+- **Comprehensive Model Evaluation**:
+  - Train/validation split (80/20) with random shuffling
+  - Threshold tuning on validation set to maximize accuracy × coverage
+  - Test set evaluation with accuracy metrics
 
 ## 📂 Project Structure
 ```
 AI_Disease_Prediction/
 ├── README.md                          # Project documentation
 ├── requirements.txt                   # Python dependencies
-├── code/
-│   └── Main.py                        # Main training + inference script
+├── main.py                            # Entry point
+├── core/
+│   └── core_pipeline.py               # Core pipeline utilities
 ├── Data/
 │   ├── Training.csv                   # Training dataset (not included)
-│   └── Testing.csv                    # Testing dataset (not included)
-└── notebooks/
-    ├── Final_Year_Project.ipynb       # Full pipeline with cross-validation
-    └── MLP.ipynb                      # Exploratory notebook
+│   └── Testing.csv                # Exploratory notebook
+├── model/
+│   ├── layers.py                      # Layer implementations
+│   ├── loss.py                        # Loss functions
+│   ├── mlp.py                         # MLP model
+│   ├── neuron.py                      # Neuron implementation
+│   └── optimization.py                # Optimizers
+├── utils/
+│   ├── data_utils.py                  # Data loading utilities
+│   ├── encoding.py                    # Label encoding
+│   └── metrics.py                     # Evaluation metrics
+├── interaction/
+│   └── conversation.py                # Conversational interface
+├── thresholds/
+│   └── threshold.py                   # Threshold tuning utilities
+└── visualization/
+    └── plots.py                       # Visualization functions
 ```
 
 ## 📥 Dataset
@@ -44,130 +56,47 @@ AI_Disease_Prediction/
 **Required dataset format:**
 - Each row represents a patient sample
 - **Symptom columns**: Binary values (1 = present, 0 = absent)
-- **Target column**: Named `disease` or `prognosis` (disease name/type)
 
 **Obtaining the dataset:**
-1. Download from [Kaggle - Disease Prediction from Symptoms](https://www.kaggle.com/datasets)
+1. Download from Kaggle
 2. Place files in the `Data/` directory with exact names:
    - `Training.csv`
    - `Testing.csv`
 
 ## 🚀 Quick Start
 
-### Option 1: Standalone Training & Inference
-```bash
-cd code
-python Main.py
-```
-Expected output:
-```
-Starting training...
-
-Epoch 001 | Train Loss: 2.3451 | Val Acc: 0.6234
-Epoch 005 | Train Loss: 1.2345 | Val Acc: 0.8123
-...
-Optimal abstain threshold: 0.742
-
-Test Results (Selective Prediction)
------------------------------------
-Selective Accuracy : 0.9234
-Coverage           : 0.8500
-Abstain Rate       : 0.1500
-```
-
-### Option 2: Interactive Diagnosis (Jupyter Notebook)
-Open `notebooks/Final_Year_Project.ipynb` and run all cells. The notebook includes:
-- 5-fold cross-validation on training data
-- Optimal threshold tuning
-- Interactive diagnosis loop at the end
-
-**Example interaction:**
-```
-Enter symptoms separated by commas (empty line to exit):
-> itching
-It could be Fungal infection confidence: 0.65 or Drug Reaction confidence: 0.25. Could you share more symptoms...
-> skin rash
-It could be Fungal infection confidence: 0.88 or Bacterial infection confidence: 0.10. Could you share more symptoms...
-> burning sensation
-Final prediction: Fungal infection with confidence: 0.92
-```
-
-## 🛠️ Architecture
-
-### MLP Configuration
-- **Input Layer**: Variable (depends on symptom count)
-- **Hidden Layer 1**: 64 neurons, ReLU activation, 20% Dropout
-- **Hidden Layer 2**: 32 neurons, ReLU activation, 20% Dropout
-- **Output Layer**: N neurons (softmax), where N = number of diseases
-
-### Training Configuration
-- **Optimizer**: Adam (lr=0.001, β₁=0.9, β₂=0.999, ε=1e-7)
-- **Loss Function**: Categorical Cross-Entropy
-- **Batch Size**: 64
-- **Epochs**: 50-100
-- **Validation Split**: 20% of training data
-- **Dropout Rate**: 0.2
-
-## 📊 Model Evaluation Metrics
-- **Selective Accuracy**: Accuracy on accepted (confident) predictions
-- **Coverage**: Ratio of accepted predictions to total predictions
-- **Abstain Rate**: Ratio of rejected (low-confidence) predictions
-- **Calibration**: Expected vs actual confidence (see calibration curves)
-
-## 📝 Implementation Details
-
-### Key Components
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| `Neuron` | Main.py | Single neuron with forward/backward pass |
-| `Dense` | Main.py | Fully connected layer |
-| `ReLU` | Main.py | ReLU activation |
-| `Dropout` | Main.py | Regularization during training |
-| `SoftmaxCrossEntropy` | Main.py | Combined loss + activation |
-| `Adam` | Main.py | Adaptive learning rate optimizer |
-| `MLP` | Main.py | Full neural network |
-| `LabelEncoder` | Main.py | Encoding/decoding disease labels |
-
-### Training Pipeline (Main.py)
-1. **Load & preprocess**: CSV loading, column detection
-2. **Encode labels**: Convert disease names to integers
-3. **Train/validation split**: 80/20 split with shuffling
-4. **Train model**: Batch training with Adam optimizer
-5. **Threshold tuning**: Find optimal confidence threshold on validation set
-6. **Evaluation**: Test accuracy, confusion matrix, calibration analysis
-7. **Visualization**: Confidence histogram and calibration curve plots
-
-## 🔧 Dependencies
-```
-numpy>=1.19.0
-pandas>=1.1.0
-matplotlib>=3.3.0
-```
-
-Install with:
+### Prerequisites
+Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-## ⚙️ Configuration
-Edit parameters in `Main.py`:
-```python
-# Model architecture
-h1 = 64          # Hidden layer 1 size
-h2 = 32          # Hidden layer 2 size
-dropout = 0.2    # Dropout rate
-
-# Training
-epochs = 50      # Number of epochs
-batch_size = 64  # Batch size
-lr = 0.001       # Learning rate
-
-# Threshold tuning
-threshold_range = 0.2 to 0.9  # Confidence thresholds to test
+### Option 1: From Root Directory
+```bash
+python main.py
 ```
 
-## 📈 Output Artifacts
-The script generates two visualizations:
-- `confidence_histogram.png` - Distribution of model confidence on test set
-- `calibration_curve.png` - Expected vs actual accuracy by confidence level
+This runs the core pipeline which loads data, trains the model, evaluates on test set, and starts the interactive diagnosis mode.
+
+**Expected output:**
+```
+Starting training...
+
+Epoch 001 | Train Acc: 0.6234 | Val Acc: 0.5123 | Loss: 2.3451
+Epoch 005 | Train Acc: 0.8234 | Val Acc: 0.8123 | Loss: 1.2345
+Epoch 010 | Train Acc: 0.9012 | Val Acc: 0.8756 | Loss: 0.5234
+...
+
+Confidence threshold: 0.742
+Entropy threshold: 0.568
+
+Test accuracy: 0.8456
+
+Enter symptoms (reset / empty to exit)
+
+Symptoms: itching, skin_rash
+Uncertain (entropy=0.95). Possible: Fungal infection (0.65)
+
+Symptoms: nodal_skin_eruptions
+Final Diagnosis: Fungal infection (confidence=0.92, entropy=0.42)
+```
