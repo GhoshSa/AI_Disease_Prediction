@@ -32,17 +32,14 @@ def tune_verifier_thresholds(verifier, X_val, y_val, model):
     similarities_correct = similarities[correct_flags == 1]
     confidences_correct = confidences[correct_flags == 1]
 
-    # 🔥 Robust thresholds
     agreement_t = np.percentile(agreements_correct, 10)
     similarity_t = np.percentile(similarities_correct, 10)
     confidence_t = np.percentile(confidences_correct, 10)
 
-    # Relaxation
     agreement_t *= 0.9
     similarity_t *= 0.85
     confidence_t *= 0.95
 
-    # Clamping
     agreement_t = np.clip(agreement_t, 0.5, 0.9)
     similarity_t = np.clip(similarity_t, 0.3, 0.8)
     confidence_t = np.clip(confidence_t, 0.4, 0.85)

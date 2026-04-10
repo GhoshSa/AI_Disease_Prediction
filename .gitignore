@@ -10,6 +10,8 @@ Data
 /learning
 __pycache__
 
+/saved
+
 Backprop gradient class.ipynb
 Backprop_Single_Neuron.ipynb
 Coding Layers Neural Network (1).ipynb

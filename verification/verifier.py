@@ -6,7 +6,6 @@ class CaseBasedVerifier:
         self.y_train = y_train
         self.k = k
 
-        # will be set dynamically
         self.agreement_threshold = 0.6
         self.similarity_threshold = 0.4
         self.conf_threshold = 0.5

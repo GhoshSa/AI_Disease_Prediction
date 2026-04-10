@@ -10,75 +10,94 @@ from interaction.conversation import ConversationPredictor
 from verification.verifier import CaseBasedVerifier
 from thresholds.verifier_thresholds import tune_verifier_thresholds
 from utils.metrics import entropy
+from utils.persistence import load_all, save_all
 
 TRAINING_PATH = "./Data/Training.csv"
 TESTING_PATH = "./Data/Testing.csv"
 
 
 def main():
+    saved = load_all()
+
     df_train = remove_unused_column(load_csv(TRAINING_PATH))
     target, features = detect_columns(df_train)
 
     X_train = df_train[features].values.astype(np.float32)
-    encoder = LabelEncoder()
-    y_train = encoder.fit_transform(df_train[target].values)
 
-    idx = np.random.permutation(len(X_train))
-    split = int(0.8 * len(X_train))
+    if saved is not None:
+        print("Leaded saved model\n")
 
-    Xtr, Xval = X_train[idx[:split]], X_train[idx[split:]]
-    ytr, yval = y_train[idx[:split]], y_train[idx[split:]]
+        model = saved["model"]
+        encoder = saved["encoder"]
 
-    model = MLP(X_train.shape[1], len(encoder.classes))
-    opt = Adam()
+        conf_t = saved["thresholds"]["confidence"]
+        ent_t = saved["thresholds"]["entropy"]
 
-    print("\nStarting training...\n")
+        verifier_thresholds = saved["verifier_thresholds"]
 
-    for e in range(50):
-        perm = np.random.permutation(len(Xtr))
-        X_tr_epoch = Xtr[perm]
-        y_tr_epoch = ytr[perm]
+        y_train = encoder.transform(df_train[target].values)
 
-        loss = model.train_batch(X_tr_epoch, y_tr_epoch, opt)
+        verifier = CaseBasedVerifier(X_train, y_train, k=5)
+        verifier.set_thresholds(verifier_thresholds)
+    
+    else:
+        print("No saved model found. Training...\n")
 
-        if e == 0 or (e + 1) % 5 == 0:
-            tr_pred, _ = model.predict(Xtr)
-            va_pred, _ = model.predict(Xval)
+        encoder = LabelEncoder()
+        y_train = encoder.fit_transform(df_train[target].values)
 
-            print(f"Epoch {e+1:03d} | "
-                  f"Train Acc: {accuracy_score(ytr, tr_pred):.4f} | "
-                  f"Val Acc: {accuracy_score(yval, va_pred):.4f} | "
-                  f"Loss: {loss:.4f}")
+        idx = np.random.permutation(len(X_train))
+        split = int(0.8 * len(X_train))
 
-    # Threshold tuning (conversation)
-    _, val_probs = model.predict(Xval)
-    conf_t = tune_confidence_threshold(yval, val_probs)
-    ent_t = tune_entropy_threshold(yval, val_probs)
+        Xtr, Xval = X_train[idx[:split]], X_train[idx[split:]]
+        ytr, yval = y_train[idx[:split]], y_train[idx[split:]]
 
-    print(f"\nConfidence threshold: {conf_t:.3f}")
-    print(f"Entropy threshold: {ent_t:.3f}")
+        model = MLP(X_train.shape[1], len(encoder.classes))
+        opt = Adam()
 
-    # TEST PHASE
-    df_test = remove_unused_column(load_csv(TESTING_PATH))
+        for e in range(50):
+            perm = np.random.permutation(len(Xtr))
+            X_tr_epoch = Xtr[perm]
+            y_tr_epoch = ytr[perm]
 
-    X_test = df_test[features].values.astype(np.float32)
-    y_test = encoder.transform(df_test[target].values)
+            loss = model.train_batch(X_tr_epoch, y_tr_epoch, opt)
 
-    test_preds, _ = model.predict(X_test)
-    test_acc = accuracy_score(y_test, test_preds)
+            if e == 0 or (e + 1) % 5 == 0:
+                tr_pred, _ = model.predict(Xtr)
+                va_pred, _ = model.predict(Xval)
 
-    print(f"\nTest Accuracy: {test_acc:.4f}")
+                print(f"Epoch {e+1:03d} | Train Acc: {accuracy_score(ytr, tr_pred):.4f} | Val Acc: {accuracy_score(yval, va_pred):.4f} | Loss: {loss:.4f}")
 
-    # VERIFIER
-    verifier = CaseBasedVerifier(Xtr, ytr, k=5)
+        _, val_probs = model.predict(Xval)
+        conf_t = tune_confidence_threshold(yval, val_probs)
+        ent_t = tune_entropy_threshold(yval, val_probs)
 
-    thresholds = tune_verifier_thresholds(verifier, Xval, yval, model)
-    verifier.set_thresholds(thresholds)
+        print(f"\nConfidence threshold: {conf_t:.3f}")
+        print(f"Entropy threshold: {ent_t:.3f}")
 
-    print("\nVerifier thresholds learned:")
-    print(f"Agreement Threshold  : {thresholds['agreement']:.2f}")
-    print(f"Similarity Threshold : {thresholds['similarity']:.2f}")
-    print(f"Confidence Threshold : {thresholds['confidence']:.2f}")
+        df_test = remove_unused_column(load_csv(TESTING_PATH))
+
+        X_test = df_test[features].values.astype(np.float32)
+        y_test = encoder.transform(df_test[target].values)
+
+        test_preds, _ = model.predict(X_test)
+        test_acc = accuracy_score(y_test, test_preds)
+
+        print(f"\nTest Accuracy: {test_acc:.4f}")
+
+        verifier = CaseBasedVerifier(Xtr, ytr, k=5)
+
+        thresholds = tune_verifier_thresholds(verifier, Xval, yval, model)
+        verifier.set_thresholds(thresholds)
+
+        print("\nVerifier thresholds learned:")
+        print(f"Agreement Threshold  : {thresholds['agreement']:.2f}")
+        print(f"Similarity Threshold : {thresholds['similarity']:.2f}")
+        print(f"Confidence Threshold : {thresholds['confidence']:.2f}")
+
+        save_all(model, encoder, {"confidence": conf_t, "entropy": ent_t}, thresholds)
+
+        print("Model saved successfully.\n")
 
     predictor = ConversationPredictor(model, encoder, features, conf_t, ent_t)
 
