@@ -1,6 +1,8 @@
 import numpy as np
 import re
 
+from utils.metrics import entropy
+
 class ConversationPredictor:
     def __init__(self, model, encoder, symptom_columns, confidence_threshold, entropy_threshold):
         self.model = model
@@ -26,19 +28,19 @@ class ConversationPredictor:
         _, probs = self.model.predict(self.vector)
         probs = probs[0]
 
-        entropy = -np.sum(probs * np.log(probs + 1e-9))
+        ent = entropy(probs.reshape(1, -1))[0]
 
-        self.entropy_hist.append(entropy)
+        self.entropy_hist.append(ent)
         self.symptom_hist.append(int(np.sum(self.vector)))
 
         top2 = np.argsort(probs)[-2:][::-1]
         top, second = top2
         top_conf = probs[top]
 
-        if entropy > self.entropy_threshold:
-            return "wait", top, probs[top], second, probs[second], entropy
+        if ent > self.entropy_threshold:
+            return "wait", top, probs[top], second, probs[second], ent
 
         if top_conf < self.conf_threshold:
-            return "abstain", top, probs[top], second, probs[second], entropy
+            return "abstain", top, probs[top], second, probs[second], ent
 
-        return "predict", top, probs[top], None, None, entropy
+        return "predict", top, probs[top], None, None, ent

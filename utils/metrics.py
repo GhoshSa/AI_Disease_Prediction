@@ -3,5 +3,10 @@ import numpy as np
 def accuracy_score(y_true, y_pred):
     return np.mean(y_true == y_pred)
 
-def entropy(probs):
-    return -np.sum(probs * np.log(probs + 1e-9), axis = -1)
+def entropy(probs, normalize=True):
+    ent = -np.sum(probs * np.log(probs + 1e-9), axis=-1)
+    
+    if normalize:
+        ent = ent / np.log(probs.shape[-1])
+    
+    return ent

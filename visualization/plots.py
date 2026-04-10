@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+from utils.metrics import entropy
+
 def plot_entropy_vs_symptoms(symptoms, entropy):
     plt.figure()
     plt.plot(symptoms, entropy, marker="o")
@@ -21,9 +23,9 @@ def plot_confidence_vs_entropy(probs):
 
 def plot_entropy_distribution(y, probs):
     pred = np.argmax(probs, axis=1)
-    entropy = -np.sum(probs * np.log(probs + 1e-9), axis=1)
-    plt.hist(entropy[pred == y], bins=30, alpha=0.7, label="Correct")
-    plt.hist(entropy[pred != y], bins=30, alpha=0.7, label="Incorrect")
+    ent = entropy(probs)
+    plt.hist(ent[pred == y], bins=30, alpha=0.7, label="Correct")
+    plt.hist(ent[pred != y], bins=30, alpha=0.7, label="Incorrect")
     plt.legend()
     plt.xlabel("Entropy")
     plt.title("Entropy Distribution")

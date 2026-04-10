@@ -13,6 +13,6 @@ class Neuron:
         return np.dot(x, self.w) + self.b
 
     def backward(self, d_out):
-        self.dw = np.dot(self.x.T, d_out)
-        self.db = np.sum(d_out)
+        self.dw = np.dot(self.x.T, d_out) / len(d_out)
+        self.db = np.mean(d_out)
         return np.outer(d_out, self.w)
