@@ -11,6 +11,7 @@ from verification.verifier import CaseBasedVerifier
 from thresholds.verifier_thresholds import tune_verifier_thresholds
 from utils.metrics import entropy
 from utils.persistence import load_all, save_all
+from visualization.plots import plot_training_accuracy, plot_training_loss
 
 TRAINING_PATH = "./Data/Training.csv"
 TESTING_PATH = "./Data/Testing.csv"
@@ -46,27 +47,45 @@ def main():
         encoder = LabelEncoder()
         y_train = encoder.fit_transform(df_train[target].values)
 
-        idx = np.random.permutation(len(X_train))
-        split = int(0.8 * len(X_train))
-
-        Xtr, Xval = X_train[idx[:split]], X_train[idx[split:]]
-        ytr, yval = y_train[idx[:split]], y_train[idx[split:]]
+        indices = np.arange(len(X_train))
+        np.random.shuffle(indices)
+        split = int(len(X_train) * 0.8)
+        train_idx, val_idx = indices[:split], indices[split:]
+        
+        Xtr, ytr = X_train[train_idx], y_train[train_idx]
+        Xval, yval = X_train[val_idx], y_train[val_idx]
 
         model = MLP(X_train.shape[1], len(encoder.classes))
         opt = Adam()
 
-        for e in range(50):
-            perm = np.random.permutation(len(Xtr))
-            X_tr_epoch = Xtr[perm]
-            y_tr_epoch = ytr[perm]
+        history = {
+            'train_loss': [], 'val_loss': [],
+            'train_acc': [], 'val_acc': []
+        }
 
-            loss = model.train_batch(X_tr_epoch, y_tr_epoch, opt)
+        epochs = 50 
+        for epoch in range(epochs):
+            loss = model.train_batch(Xtr, ytr, opt)
+            
+            train_preds, _ = model.predict(Xtr)
+            val_preds, _ = model.predict(Xval)
+            
+            val_logits = model.forward(Xval, training=False)
+            v_loss = model.loss_fn.forward(val_logits, yval)
+            
+            t_acc = accuracy_score(ytr, train_preds)
+            v_acc = accuracy_score(yval, val_preds)
 
-            if e == 0 or (e + 1) % 5 == 0:
-                tr_pred, _ = model.predict(Xtr)
-                va_pred, _ = model.predict(Xval)
+            history['train_loss'].append(loss)
+            history['val_loss'].append(v_loss)
+            history['train_acc'].append(t_acc)
+            history['val_acc'].append(v_acc)
 
-                print(f"Epoch {e+1:03d} | Train Acc: {accuracy_score(ytr, tr_pred):.4f} | Val Acc: {accuracy_score(yval, va_pred):.4f} | Loss: {loss:.4f}")
+            if epoch == 0 or (epoch + 1) % 10 == 0:
+                print(f"Epoch {epoch+1:02d} | Train Acc: {accuracy_score(ytr, train_preds):.4f} | Val Acc: {accuracy_score(yval, val_preds):.4f} | Loss: {loss:.4f}")
+
+        plot_training_accuracy(history)
+        plot_training_loss(history)
 
         _, val_probs = model.predict(Xval)
         conf_t = tune_confidence_threshold(yval, val_probs)
@@ -149,7 +168,7 @@ def main():
         decision, t, tc, s, sc, ent = predictor.predict()
 
         if decision == "wait":
-            print(f"Uncertain (entropy={ent:.2f})")
+            print(f"Uncertain (entropy={ent:.2f}). Possible: {encoder.classes[t]} ({tc:.2f})")
             print("Not enough information yet...\n")
             continue
 

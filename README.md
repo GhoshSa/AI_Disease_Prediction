@@ -11,8 +11,10 @@ A **neural network from scratch** built with **NumPy** to predict diseases from 
   - Adam optimizer with adaptive learning rates, momentum, and RMSprop
 - **Dual-threshold Prediction Strategy**:
   - **Entropy threshold**: Requests additional symptoms when uncertainty is high
-  - **Confidence threshold**: Abstains when max probability is below threshold
-  - **Calibrated decision-making**: Combines both thresholds for robust predictions
+- **Case-Based Verification System**:
+  - Secondary validation layer using historical case similarity (K-NN)
+  - Logic to "Accept", "Reject", or mark predictions as "Uncertain"
+  - Support for "Force" mode to bypass standard entropy checks
 - **Interactive Diagnosis System**:
   - Natural language symptom parsing with comma/period/semicolon delimiters
   - Real-time entropy and confidence tracking during conversation
@@ -31,21 +33,25 @@ AI_Disease_Prediction/
 │   └── core_pipeline.py               # Core pipeline utilities
 ├── Data/
 │   ├── Training.csv                   # Training dataset (not included)
-│   └── Testing.csv                # Exploratory notebook
+│   └── Testing.csv                    # Evaluation dataset (not included)
 ├── model/
 │   ├── layers.py                      # Layer implementations
 │   ├── loss.py                        # Loss functions
 │   ├── mlp.py                         # MLP model
 │   ├── neuron.py                      # Neuron implementation
-│   └── optimization.py                # Optimizers
+│   └── optimization.py                # Optimizer
 ├── utils/
 │   ├── data_utils.py                  # Data loading utilities
 │   ├── encoding.py                    # Label encoding
-│   └── metrics.py                     # Evaluation metrics
+│   ├── metrics.py                     # Evaluation metrics (Entropy, Accuracy)
+│   └── persistence.py                 # Model saving/loading logic
 ├── interaction/
 │   └── conversation.py                # Conversational interface
 ├── thresholds/
-│   └── threshold.py                   # Threshold tuning utilities
+│   ├── threshold.py                   # Standard threshold tuning
+│   └── verifier_thresholds.py         # Verifier-specific tuning
+├── verification/
+│   └── verifier.py                    # Case-based verification logic
 └── visualization/
     └── plots.py                       # Visualization functions
 ```
@@ -78,25 +84,15 @@ python main.py
 
 This runs the core pipeline which loads data, trains the model, evaluates on test set, and starts the interactive diagnosis mode.
 
-**Expected output:**
-```
-Starting training...
+## 📜 License
 
-Epoch 001 | Train Acc: 0.6234 | Val Acc: 0.5123 | Loss: 2.3451
-Epoch 005 | Train Acc: 0.8234 | Val Acc: 0.8123 | Loss: 1.2345
-Epoch 010 | Train Acc: 0.9012 | Val Acc: 0.8756 | Loss: 0.5234
-...
+This project is for **academic purposes only**.  
+Not intended for real-world medical use.
 
-Confidence threshold: 0.742
-Entropy threshold: 0.568
+---
 
-Test accuracy: 0.8456
+## ⭐ Acknowledgements
 
-Enter symptoms (reset / empty to exit)
-
-Symptoms: itching, skin_rash
-Uncertain (entropy=0.95). Possible: Fungal infection (0.65)
-
-Symptoms: nodal_skin_eruptions
-Final Diagnosis: Fungal infection (confidence=0.92, entropy=0.42)
-```
+- Open medical datasets  
+- Academic references on ML in healthcare  
+- Inspiration from hybrid AI systems  

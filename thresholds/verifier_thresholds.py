@@ -16,7 +16,7 @@ def tune_verifier_thresholds(verifier, X_val, y_val, model):
 
         confidence = probs[pred]
 
-        best_label, info = verifier.verify_raw(x[0])
+        _, info = verifier.verify_raw(x[0])
 
         agreements.append(info["agreement"])
         similarities.append(info["similarity"])
