@@ -1,0 +1,25 @@
+graph TD
+    User([User Symptom Input]) --> Conv[ConversationPredictor]
+    Conv --> NLP_Vec[Symptom Vectorization]
+    NLP_Vec --> Model[Custom MLP Model]
+    
+    subgraph "Neural Network Brain"
+        Model --> Dense1[Dense Layer 64]
+        Dense1 --> ReLU1[ReLU + Dropout]
+        ReLU1 --> Dense2[Dense Layer 32]
+        Dense2 --> Out[Output Softmax]
+    end
+
+    Out --> Decision{Is Confidence > T?}
+    Decision -- No --> Abstain[Request More Symptoms]
+    Decision -- Yes --> Verifier[Case-Based Verifier]
+
+    subgraph "Verification Layer"
+        Verifier --> KNN[k-Nearest Neighbors Search]
+        KNN --> TrainingData[(Training.csv)]
+        Verifier --> Checks{Passes Checks?}
+        Checks -- Similarity < Threshold --> Uncertain[Mark as Uncertain]
+        Checks -- Cases Disagree --> Reject[Reject Prediction]
+    end
+
+    Checks -- All Pass --> Final([Verified Diagnosis])

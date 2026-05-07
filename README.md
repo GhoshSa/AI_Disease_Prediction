@@ -95,4 +95,4 @@ Not intended for real-world medical use.
 
 - Open medical datasets  
 - Academic references on ML in healthcare  
-- Inspiration from hybrid AI systems  
+- Inspiration from hybrid AI systems

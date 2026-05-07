@@ -43,4 +43,4 @@ class ConversationPredictor:
         if top_conf < self.conf_threshold:
             return "abstain", top, probs[top], second, probs[second], ent
 
-        return "predict", top, probs[top], None, None, ent
+        return "predict", top, probs[top], second, probs[second], ent

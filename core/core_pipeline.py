@@ -1,6 +1,7 @@
 import numpy as np
 
-from utils.data_utils import detect_columns, load_csv, remove_unused_column
+from baselines.baseline_models import print_results, run_all_baselines
+from utils.data_utils import add_noise, detect_columns, load_csv, remove_unused_column
 from utils.encoding import LabelEncoder
 from model.mlp import MLP
 from model.optimization import Adam
@@ -11,11 +12,13 @@ from verification.verifier import CaseBasedVerifier
 from thresholds.verifier_thresholds import tune_verifier_thresholds
 from utils.metrics import entropy
 from utils.persistence import load_all, save_all
-from visualization.plots import plot_training_accuracy, plot_training_loss
+from visualization.plots import plot_clean_vs_noisy, plot_training_accuracy, plot_training_loss
+from utils.metrics import precision_recall_f1, confusion_matrix
+from visualization.plots import plot_confusion_matrix
+from evaluation.cross_validation import cross_validate_mlp
 
 TRAINING_PATH = "./Data/Training.csv"
 TESTING_PATH = "./Data/Testing.csv"
-
 
 def main():
     saved = load_all()
@@ -26,7 +29,7 @@ def main():
     X_train = df_train[features].values.astype(np.float32)
 
     if saved is not None:
-        print("Leaded saved model\n")
+        print("Loaded saved model\n")
 
         model = saved["model"]
         encoder = saved["encoder"]
@@ -84,6 +87,20 @@ def main():
             if epoch == 0 or (epoch + 1) % 10 == 0:
                 print(f"Epoch {epoch+1:02d} | Train Acc: {accuracy_score(ytr, train_preds):.4f} | Val Acc: {accuracy_score(yval, val_preds):.4f} | Loss: {loss:.4f}")
 
+        print("\nRunning 5-Fold Cross Validation...\n")
+
+        cv_results = cross_validate_mlp(
+            MLP,
+            X_train,
+            y_train,
+            num_classes=len(encoder.classes),
+            folds=5
+        )
+
+        print("Cross Validation Results:")
+        for k, (mean, std) in cv_results.items():
+            print(f"{k}: {mean:.4f} ± {std:.4f}")
+
         plot_training_accuracy(history)
         plot_training_loss(history)
 
@@ -99,10 +116,50 @@ def main():
         X_test = df_test[features].values.astype(np.float32)
         y_test = encoder.transform(df_test[target].values)
 
-        test_preds, _ = model.predict(X_test)
-        test_acc = accuracy_score(y_test, test_preds)
+        Xtest = X_test
+        Ytest = y_test
+
+        clean_preds, _ = model.predict(X_test)
+        clean_acc = accuracy_score(y_test, clean_preds)
+
+        num_classes = len(encoder.classes)
+
+        clean_metrics = precision_recall_f1(y_test, clean_preds, num_classes)
+        clean_cm = confusion_matrix(y_test, clean_preds, num_classes)
+
+        print("\nClean Dataset...")
+        print(f"Accuracy  : {clean_acc:.4f}")
+        print(f"Precision : {clean_metrics['precision']:.4f}")
+        print(f"Recall    : {clean_metrics['recall']:.4f}")
+        print(f"F1 Score  : {clean_metrics['f1']:.4f}")
+
+        plot_confusion_matrix(clean_cm, filename="confusion_matrix_clean.png", title="Confusion Matrix (Clean Data)", class_names=encoder.classes)
+
+        X_noisy = add_noise(X_test, noise_level=0.1)
+
+        noisy_preds, _ = model.predict(X_noisy)
+        noisy_acc = accuracy_score(y_test, noisy_preds)
+
+        noisy_metrics = precision_recall_f1(y_test, noisy_preds, num_classes)
+        noisy_cm = confusion_matrix(y_test, noisy_preds, num_classes)
+
+        print("\nAdded noise...")
+        print(f"Accuracy  : {noisy_acc:.4f}")
+        print(f"Precision : {noisy_metrics['precision']:.4f}")
+        print(f"Recall    : {noisy_metrics['recall']:.4f}")
+        print(f"F1 Score  : {noisy_metrics['f1']:.4f}")
+
+        plot_confusion_matrix(noisy_cm, filename="confusion_matrix_noisy.png", title="Confusion Matrix (Noisy Data - 10%)", class_names=encoder.classes)
+        
+        test_preds, _ = model.predict(Xtest)
+        test_acc = accuracy_score(Ytest, test_preds)
 
         print(f"\nTest Accuracy: {test_acc:.4f}")
+
+        Xtest_noisy = add_noise(Xtest, noise_level=0.1)
+
+        baseline_results = run_all_baselines(Xtr, ytr, Xtest_noisy, Ytest)
+        print_results(baseline_results)
 
         verifier = CaseBasedVerifier(Xtr, ytr, k=5)
 
@@ -113,6 +170,11 @@ def main():
         print(f"Agreement Threshold  : {thresholds['agreement']:.2f}")
         print(f"Similarity Threshold : {thresholds['similarity']:.2f}")
         print(f"Confidence Threshold : {thresholds['confidence']:.2f}")
+
+        clean_metrics['accuracy'] = clean_acc
+        noisy_metrics['accuracy'] = noisy_acc
+
+        plot_clean_vs_noisy(clean_metrics, noisy_metrics)
 
         save_all(model, encoder, {"confidence": conf_t, "entropy": ent_t}, thresholds)
 

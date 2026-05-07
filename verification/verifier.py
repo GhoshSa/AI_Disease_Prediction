@@ -1,75 +1,120 @@
 import numpy as np
 
+
 class CaseBasedVerifier:
     def __init__(self, X_train, y_train, k=5):
         self.X_train = X_train
         self.y_train = y_train
         self.k = k
-
-        self.agreement_threshold = 0.6
-        self.similarity_threshold = 0.4
-        self.conf_threshold = 0.5
-        self.min_symptoms = 2
-
-    def set_thresholds(self, thresholds):
-        self.agreement_threshold = thresholds["agreement"]
-        self.similarity_threshold = thresholds["similarity"]
-        self.conf_threshold = thresholds["confidence"]
-
-    def similarity(self, x1, x2):
-        intersection = np.sum((x1 == 1) & (x2 == 1))
-        union = np.sum((x1 == 1) | (x2 == 1))
-        return intersection / union if union != 0 else 0.0
-
-    def get_top_k_cases(self, input_vec):
-        sims = []
-        for i in range(len(self.X_train)):
-            sim = self.similarity(self.X_train[i], input_vec)
-            sims.append((sim, self.y_train[i]))
-
-        sims.sort(reverse=True, key=lambda x: x[0])
-        return sims[:self.k]
-
-    def verify_raw(self, input_vec):
-        top_cases = self.get_top_k_cases(input_vec)
-
-        weighted_votes = {}
-        for sim, label in top_cases:
-            weighted_votes[label] = weighted_votes.get(label, 0) + sim
-
-        best_label = max(weighted_votes, key=weighted_votes.get)
-        total_weight = sum(weighted_votes.values())
-
-        agreement = weighted_votes[best_label] / total_weight if total_weight > 0 else 0.0
-        similarity = np.mean([sim for sim, _ in top_cases])
-
-        return best_label, {
-            "agreement": agreement,
-            "similarity": similarity,
-            "top_cases": top_cases
+        
+        self.thresholds = {
+            "agreement": 0.7,
+            "similarity": 0.5,
+            "confidence": 0.6
         }
 
-    def verify(self, pred_class, input_vec, confidence=None):
-        num_symptoms = int(np.sum(input_vec))
+    def set_thresholds(self, thresholds):
+        self.thresholds.update(thresholds)
+    
+    def _compute_similarity(self, x_input, x_train):
+        """
+        Overlap-based similarity for sparse symptom vectors:
+        similarity = common_symptoms / input_symptoms
+        """
+        input_sum = np.sum(x_input)
 
-        if num_symptoms < self.min_symptoms:
-            return "uncertain", {"reason": "Insufficient symptoms"}
+        if input_sum == 0:
+            return 0.0
 
-        if confidence is not None and confidence < self.conf_threshold:
-            return "uncertain", {"reason": "Low model confidence"}
+        common = np.sum((x_input == 1) & (x_train == 1))
+        return common / input_sum
+    
+    def verify_raw(self, x_input):
+        similarities = []
 
-        best_label, info = self.verify_raw(input_vec)
+        for i in range(len(self.X_train)):
+            sim = self._compute_similarity(x_input, self.X_train[i])
+            similarities.append((sim, self.y_train[i]))
 
-        agreement = info["agreement"]
-        similarity = info["similarity"]
+        similarities.sort(reverse=True, key=lambda x: x[0])
+        top_k = similarities[:self.k]
 
-        if best_label != pred_class:
-            return "reject", {"reason": "Similar cases disagree", **info}
+        sims = [s for s, _ in top_k]
+        labels = [l for _, l in top_k]
 
-        if agreement < self.agreement_threshold:
-            return "uncertain", {"reason": "Low agreement", **info}
+        avg_similarity = np.mean(sims)
 
-        if similarity < self.similarity_threshold:
-            return "uncertain", {"reason": "Low similarity", **info}
+        counts = {}
+        for l in labels:
+            counts[l] = counts.get(l, 0) + 1
 
-        return "accept", {"reason": "Verified", **info}
+        majority_class = max(counts, key=counts.get)
+        agreement = counts[majority_class] / self.k
+
+        return majority_class, {
+            "similarity": avg_similarity,
+            "agreement": agreement
+        }
+
+    def verify(self, predicted_class, x_input, confidence):
+        similarities = []
+
+        for i in range(len(self.X_train)):
+            sim = self._compute_similarity(x_input, self.X_train[i])
+            similarities.append((sim, self.y_train[i]))
+
+        similarities.sort(reverse=True, key=lambda x: x[0])
+        top_k = similarities[:self.k]
+
+        sims = [s for s, _ in top_k]
+        labels = [l for _, l in top_k]
+
+        avg_similarity = np.mean(sims)
+
+        agreement = np.mean([1 if l == predicted_class else 0 for l in labels])
+
+        num_symptoms = int(np.sum(x_input))
+
+        if num_symptoms < 4:
+            sim_threshold = 0.4
+        elif num_symptoms < 7:
+            sim_threshold = 0.5
+        else:
+            sim_threshold = self.thresholds["similarity"]
+
+        agreement_threshold = self.thresholds["agreement"]
+        confidence_threshold = self.thresholds["confidence"]
+
+        info = {
+            "similarity": avg_similarity,
+            "agreement": agreement,
+            "confidence": confidence,
+            "reason": ""
+        }
+
+        if avg_similarity >= sim_threshold and agreement >= agreement_threshold:
+            info["reason"] = "High similarity and agreement"
+            return "accept", info
+
+        if confidence >= confidence_threshold:
+            info["reason"] = "Accepted due to high model confidence"
+            return "accept", info
+
+        if avg_similarity < sim_threshold:
+            info["reason"] = f"Low similarity ({avg_similarity:.2f})"
+            return "uncertain", info
+
+        if agreement < agreement_threshold:
+            counts = {}
+            for l in labels:
+                counts[l] = counts.get(l, 0) + 1
+
+            suggested = max(counts, key=counts.get)
+
+            info["reason"] = f"Low agreement ({agreement:.2f})"
+            info["suggested"] = suggested
+
+            return "reject", info
+
+        info["reason"] = "Borderline case"
+        return "uncertain", info
