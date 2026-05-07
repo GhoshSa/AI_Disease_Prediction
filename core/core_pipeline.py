@@ -196,6 +196,7 @@ def main():
             continue
 
         if text.lower() == "force":
+
             _, probs = model.predict(predictor.vector)
             probs = probs[0]
 
@@ -207,21 +208,31 @@ def main():
 
             print("\nForced Prediction Triggered")
 
-            print(f"\nModel Diagnosis: {encoder.classes[t]} (confidence={tc:.2f}, entropy={ent:.2f})")
+            print(f"\nTentative Diagnosis: {encoder.classes[t]} (confidence={tc:.2f}, entropy={ent:.2f})")
 
-            verdict, info = verifier.verify(t, predictor.vector[0], tc)
+            if tc < conf_t or ent > ent_t:
 
-            if verdict == "accept":
-                print(f"Verified Diagnosis: {encoder.classes[t]}\n")
-
-            elif verdict == "uncertain":
-                print(f"Verifier Uncertain: {info['reason']}")
-                print(f"Possible: {encoder.classes[t]} ({tc:.2f}), {encoder.classes[s]} ({sc:.2f})\n")
+                print("Prediction reliability is low")
+                print("Additional symptoms are recommended\n")
 
             else:
-                print(f"Verifier Rejected: {info['reason']}")
-                print(f"Suggested: {encoder.classes[info['suggested']]}")
-                print(f"Model said: {encoder.classes[t]} ({tc:.2f})\n")
+
+                verdict, info = verifier.verify(t, predictor.vector[0], tc)
+
+                if verdict == "accept":
+
+                    print(f"Verified Diagnosis: {encoder.classes[t]}\n")
+
+                elif verdict == "uncertain":
+
+                    print(f"Verifier Uncertain: {info['reason']}")
+                    print(f"Possible: {encoder.classes[t]} ({tc:.2f}), {encoder.classes[s]} ({sc:.2f})\n")
+
+                elif verdict == "reject":
+
+                    print(f"Verifier Rejected: {info['reason']}")
+                    print(f"Suggested: {encoder.classes[info['suggested']]}")
+                    print(f"Model said: {encoder.classes[t]} ({tc:.2f})\n")
 
             break
 

@@ -17,10 +17,6 @@ class CaseBasedVerifier:
         self.thresholds.update(thresholds)
     
     def _compute_similarity(self, x_input, x_train):
-        """
-        Overlap-based similarity for sparse symptom vectors:
-        similarity = common_symptoms / input_symptoms
-        """
         input_sum = np.sum(x_input)
 
         if input_sum == 0:
